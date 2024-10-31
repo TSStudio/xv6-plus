@@ -107,6 +107,8 @@ printf(char *fmt, ...)
       i += 2;
     } else if(c0 == 'p'){
       printptr(va_arg(ap, uint64));
+    } else if(c0 == 'c'){
+      putc(fd, va_arg(ap, int));
     } else if(c0 == 's'){
       if((s = va_arg(ap, char*)) == 0)
         s = "(null)";
