@@ -451,8 +451,11 @@ scheduler(void)
   for(;;){
     // The most recent process to run may have had interrupts
     // turned off; enable them to avoid a deadlock if all
-    // processes are waiting.
+    // processes are waiting. Then turn them back off
+    // to avoid a possible race between an interrupt
+    // and wfi.
     intr_on();
+    intr_off();
 
     int found = 0;
     for(p = proc; p < &proc[NPROC]; p++) {
@@ -474,7 +477,6 @@ scheduler(void)
     }
     if(found == 0) {
       // nothing to run; stop running on this core until an interrupt.
-      intr_on();
       asm volatile("wfi");
     }
   }
