@@ -2586,6 +2586,76 @@ badarg(char *s)
   exit(0);
 }
 
+#define REGION_SZ (1024 * 1024 * 1024)
+
+// Touch a page every 64 pages, which with lazy allocation
+// causes one page to be allocated.
+void
+sparse_memory(char *s)
+{
+  char *i, *prev_end, *new_end;
+  
+  prev_end = sbrk(REGION_SZ);
+  if (prev_end == (char*)0xffffffffffffffffL) {
+    printf("sbrk() failed\n");
+    exit(1);
+  }
+  new_end = prev_end + REGION_SZ;
+
+  for (i = prev_end + PGSIZE; i < new_end; i += 64 * PGSIZE)
+    *(char **)i = i;
+
+  for (i = prev_end + PGSIZE; i < new_end; i += 64 * PGSIZE) {
+    if (*(char **)i != i) {
+      printf("failed to read value from memory\n");
+      exit(1);
+    }
+  }
+
+  exit(0);
+}
+
+// Touch a page every 64 pages in region, which with lazy allocation
+// causes one page to be allocated. Check that freeing the region
+// frees the allocated pages.
+void
+sparse_memory_unmap(char *s)
+{
+  int pid;
+  char *i, *prev_end, *new_end;
+
+  prev_end = sbrk(REGION_SZ);
+  if (prev_end == (char*)0xffffffffffffffffL) {
+    printf("sbrk() failed\n");
+    exit(1);
+  }
+  new_end = prev_end + REGION_SZ;
+
+  for (i = prev_end + PGSIZE; i < new_end; i += PGSIZE * PGSIZE)
+    *(char **)i = i;
+
+  for (i = prev_end + PGSIZE; i < new_end; i += PGSIZE * PGSIZE) {
+    pid = fork();
+    if (pid < 0) {
+      printf("error forking\n");
+      exit(1);
+    } else if (pid == 0) {
+      sbrk(-1L * REGION_SZ);
+      *(char **)i = i;
+      exit(0);
+    } else {
+      int status;
+      wait(&status);
+      if (status == 0) {
+        printf("memory not unmapped\n");
+        exit(1);
+      }
+    }
+  }
+
+  exit(0);
+}
+
 struct test {
   void (*f)(char *);
   char *s;
@@ -2650,7 +2720,8 @@ struct test {
   {sbrklast, "sbrklast"},
   {sbrk8000, "sbrk8000"},
   {badarg, "badarg" },
-
+  {sparse_memory, "lazy alloc"},
+  {sparse_memory_unmap, "lazy unmap"},
   { 0, 0},
 };
 
