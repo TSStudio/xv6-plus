@@ -2981,17 +2981,19 @@ run(void f(char *), char *s) {
 
 int
 runtests(struct test *tests, char *justone, int continuous) {
+  int ntests = 0;
   for (struct test *t = tests; t->s != 0; t++) {
     if((justone == 0) || strcmp(t->s, justone) == 0) {
+      ntests++;
       if(!run(t->f, t->s)){
         if(continuous != 2){
           printf("SOME TESTS FAILED\n");
-          return 1;
+          return -1;
         }
       }
     }
   }
-  return 0;
+  return ntests;
 }
 
 
@@ -3067,18 +3069,26 @@ drivetests(int quick, int continuous, char *justone) {
     printf("usertests starting\n");
     int free0 = countfree();
     int free1 = 0;
-    if (runtests(quicktests, justone, continuous)) {
+    int ntests = 0;
+    int n;
+    n = runtests(quicktests, justone, continuous);
+    if (n < 0) {
       if(continuous != 2) {
         return 1;
       }
+    } else {
+      ntests += n;
     }
     if(!quick) {
       if (justone == 0)
         printf("usertests slow tests starting\n");
-      if (runtests(slowtests, justone, continuous)) {
+      n = runtests(slowtests, justone, continuous);
+      if (n < 0) {
         if(continuous != 2) {
           return 1;
         }
+      } else {
+        ntests += n;
       }
     }
     if((free1 = countfree()) < free0) {
@@ -3086,6 +3096,10 @@ drivetests(int quick, int continuous, char *justone) {
       if(continuous != 2) {
         return 1;
       }
+    }
+    if (justone != 0 && ntests == 0) {
+      printf("NO TESTS EXECUTED\n");
+      return 1;
     }
   } while(continuous);
   return 0;
