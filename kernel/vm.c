@@ -174,7 +174,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 }
 
 // Remove npages of mappings starting from va. va must be
-// page-aligned. The mappings must exist.
+// page-aligned. It's OK if the mappings don't exist.
 // Optionally free the physical memory.
 void
 uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
@@ -186,9 +186,9 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     panic("uvmunmap: not aligned");
 
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
-    if((pte = walk(pagetable, a, 0)) == 0)    // was leaf page table allocated?
+    if((pte = walk(pagetable, a, 0)) == 0) // leaf page table entry allocated?
       continue;   
-    if((*pte & PTE_V) == 0)  // has page been allocated?
+    if((*pte & PTE_V) == 0)  // has physical page been allocated?
       continue;
     if(do_free){
       uint64 pa = PTE2PA(*pte);
@@ -319,9 +319,9 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
-      continue;   // page table hasn't been allocated
+      continue;   // page table entry hasn't been allocated
     if((*pte & PTE_V) == 0)
-      continue;   // page hasn't been allocated
+      continue;   // physical page hasn't been allocated
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
@@ -461,10 +461,13 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   }
 }
 
-// allocate memory if process is referencing a page that was lazily
-// allocated in sys_sbrk().
+// allocate and map user memory if process is referencing a page
+// that was lazily allocated in sys_sbrk().
+// returns 0 if va is invalid or already mapped, or if
+// out of physical memory, and physical address if successful.
 uint64
-vmfault(pagetable_t pagetable, uint64 va, int read) {
+vmfault(pagetable_t pagetable, uint64 va, int read)
+{
   uint64 ka;
   struct proc *p = myproc();
   ka = 0;
@@ -486,7 +489,9 @@ vmfault(pagetable_t pagetable, uint64 va, int read) {
   return ka;
 }
 
-int ismapped(pagetable_t pagetable, uint64 va) {
+int
+ismapped(pagetable_t pagetable, uint64 va)
+{
   pte_t *pte = walk(pagetable, va, 0);
   if (pte == 0) {
     return 0;

@@ -262,8 +262,11 @@ shrinkproc(int n)
   uint64 sz;
   struct proc *p = myproc();
 
+  if(n > p->sz)
+    return -1;
+
   sz = p->sz;
-  sz = uvmdealloc(p->pagetable, sz, sz + n);
+  sz = uvmdealloc(p->pagetable, sz, sz - n);
   p->sz = sz;
   return 0;
 }

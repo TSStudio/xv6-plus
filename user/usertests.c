@@ -2656,6 +2656,49 @@ sparse_memory_unmap(char *s)
   exit(0);
 }
 
+void
+more_sparse(char *s)
+{
+  // copyinstr on lazy page
+  {
+    char *p = sbrk(0);
+    sbrk(4*4096);
+    open(p + 8192, 0);
+  }
+  
+  {
+    int xx = (int) (long) sbrk(0);
+    // this sbrk should fail and return -1.
+    void *ret = sbrk(-(xx+1));
+    if(ret != (void*)0xffffffffffffffff){
+      printf("sbrk(sbrk(0)+1) returned %p, not -1\n", ret);
+      exit(1);
+    }
+  }
+
+  // read() and write() to these addresses should fail.
+  unsigned long bad[] = {
+    0x3fffffc000,
+    0x3fffffd000,
+    0x3fffffe000,
+    0x3ffffff000,
+    0x4000000000,
+    0x8000000000,
+  };
+  for(int i = 0; i < sizeof(bad)/sizeof(bad[0]); i++){
+    int fd = open("README", 0);
+    if(fd < 0) { printf("cannot open README\n"); exit(1); }
+    if(read(fd, (char*)bad[i], 512) >= 0) { printf("read succeeded\n");  exit(1); }
+    close(fd);
+    fd = open("junk", O_CREATE|O_RDWR|O_TRUNC);
+    if(fd < 0) { printf("cannot open junk\n"); exit(1); }
+    if(write(fd, (char*)bad[i], 512) >= 0) { printf("write succeeded\n"); exit(1); }
+    close(fd);
+  }
+
+  exit(0);
+}
+
 struct test {
   void (*f)(char *);
   char *s;
@@ -2722,6 +2765,7 @@ struct test {
   {badarg, "badarg" },
   {sparse_memory, "lazy alloc"},
   {sparse_memory_unmap, "lazy unmap"},
+  {more_sparse, "more_sparse"},
   { 0, 0},
 };
 
