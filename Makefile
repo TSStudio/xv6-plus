@@ -91,8 +91,8 @@ $K/kernel: $(OBJS) $K/kernel.ld
 $K/%.o: $K/%.S
 	$(CC) -g -c -o $@ $<
 
-tags: $(OBJS) _init
-	etags *.S *.c
+tags: $(OBJS)
+	etags kernel/*.S kernel/*.c
 
 ULIB = $U/ulib.o $U/usys.o $U/printf.o $U/umalloc.o
 
