@@ -88,6 +88,9 @@ $K/kernel: $(OBJS) $K/kernel.ld
 	$(OBJDUMP) -S $K/kernel > $K/kernel.asm
 	$(OBJDUMP) -t $K/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $K/kernel.sym
 
+$K/%.o: $K/%.S
+	$(CC) -g -c -o $@ $<
+
 tags: $(OBJS) _init
 	etags *.S *.c
 
