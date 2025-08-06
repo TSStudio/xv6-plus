@@ -499,10 +499,12 @@ yield(void)
 void
 forkret(void)
 {
+  extern char userret[];
   static int first = 1;
+  struct proc *p = myproc();
 
   // Still holding p->lock from scheduler.
-  release(&myproc()->lock);
+  release(&p->lock);
 
   if (first) {
     // File system initialization must be run in the context of a
@@ -514,15 +516,19 @@ forkret(void)
     // ensure other cores see first=0.
     __sync_synchronize();
 
-    // We can involve exec() after file system is initialized.
+    // We can invoke exec() now that file system is initialized.
     // Put the return value (argc) of exec into a0.
-    myproc()->trapframe->a0 = exec("/init", (char *[]){ "/init", 0 });
-    if (myproc()->trapframe->a0 == -1) {
+    p->trapframe->a0 = exec("/init", (char *[]){ "/init", 0 });
+    if (p->trapframe->a0 == -1) {
       panic("exec");
     }
   }
 
-  usertrapret();
+  // return to user space, mimicing usertrap()'s return.
+  prepare_return();
+  uint64 satp = MAKE_SATP(p->pagetable);
+  uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
+  ((void (*)(uint64))trampoline_userret)(satp);
 }
 
 // Sleep on wait channel chan, releasing condition lock lk.
