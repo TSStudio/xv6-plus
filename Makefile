@@ -140,7 +140,8 @@ UPROGS=\
 	$U/_wc\
 	$U/_zombie\
 	$U/_logstress\
-	$U/_logrecover\
+	$U/_forphan\
+	$U/_dorphan\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

@@ -78,7 +78,7 @@ def crash():
     q.crash()
     q.stop()
 
-def recover():
+def recover_log():
     q = QEMU()
     time.sleep(2)
     q.read()
@@ -89,6 +89,53 @@ def recover():
     q.match('f5')
     q.stop()
 
-crash()
-recover()
-print("OK")
+def forphan():
+    q = QEMU(True)
+    q.cmd("forphan\n")
+    time.sleep(5)
+    q.read()
+    q.match('wait')
+    q.crash()
+    q.stop()
+
+def dorphan():
+    q = QEMU(True)
+    q.cmd("dorphan\n")
+    time.sleep(5)
+    q.read()
+    q.match('wait')
+    q.crash()
+    q.stop()
+
+def recover_orphan():
+    q = QEMU()
+    time.sleep(2)
+    q.read()
+    q.match('^ireclaim')
+    q.cmd("ls\n")
+    time.sleep(2)
+    q.read()
+    print(q.lines())
+    q.stop()
+
+def test_log():
+    print("Test recovery of log")
+    crash()
+    recover_log()
+    print("OK")
+
+def test_porphan():
+    print("Test recovery of an orphaned file")
+    forphan()
+    recover_orphan()
+    print("OK")
+
+def test_dorphan():
+    print("Test recovery of an orphaned file")
+    dorphan()
+    recover_orphan()
+    print("OK")
+
+test_log()
+test_porphan()
+test_dorphan()
