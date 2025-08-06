@@ -3,8 +3,7 @@
 #include "kernel/fcntl.h"
 #include "user/user.h"
 
-// Stress xv6 logging system by having several processes writing
-// concurrently to their own file (e.g., logstress f1 f2 f3 f4)
+// Create an orphaned file and check if test-xv6.py recovers it.
 
 #define BUFSZ 500
 
