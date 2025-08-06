@@ -69,6 +69,7 @@ class QEMU(object):
                 regexps = [r for r in regexps if not re.match(r, line)]
         if len(good) == 0:
             print("match failed", regexps, good)
+            self.stop()
             sys.exit(1)
 
 def crash():
@@ -112,10 +113,6 @@ def recover_orphan():
     time.sleep(2)
     q.read()
     q.match('^ireclaim')
-    q.cmd("ls\n")
-    time.sleep(2)
-    q.read()
-    print(q.lines())
     q.stop()
 
 def test_log():
@@ -124,7 +121,7 @@ def test_log():
     recover_log()
     print("OK")
 
-def test_porphan():
+def test_forphan():
     print("Test recovery of an orphaned file")
     forphan()
     recover_orphan()
@@ -137,5 +134,5 @@ def test_dorphan():
     print("OK")
 
 test_log()
-test_porphan()
+test_forphan()
 test_dorphan()
