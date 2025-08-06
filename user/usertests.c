@@ -2763,8 +2763,8 @@ struct test {
   {sbrklast, "sbrklast"},
   {sbrk8000, "sbrk8000"},
   {badarg, "badarg" },
-  {sparse_memory, "lazy alloc"},
-  {sparse_memory_unmap, "lazy unmap"},
+  {sparse_memory, "lazy_alloc"},
+  {sparse_memory_unmap, "lazy_unmap"},
   {more_sparse, "more_sparse"},
   { 0, 0},
 };
