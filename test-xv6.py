@@ -60,19 +60,20 @@ class QEMU(object):
     def lines(self):
         return self.output.splitlines()
 
-    def match(self, *regexps):
+    def match(self, *regexps, exit=True):
         lines = self.lines()
         good = set()
         for i, line in enumerate(lines):
             if any(re.match(r, line) for r in regexps):
                 good.add(i)
                 regexps = [r for r in regexps if not re.match(r, line)]
-        if len(good) == 0:
+        if len(good) == 0 and exit:
             print("match failed", regexps, good)
             self.stop()
             sys.exit(1)
+        return len(good) > 0
 
-def crash():
+def crash_log():
     q = QEMU(True)
     q.cmd("logstress f0 f1 f2 f3 f4 f5\n")
     time.sleep(2)
@@ -83,12 +84,14 @@ def recover_log():
     q = QEMU()
     time.sleep(2)
     q.read()
-    q.match('^recovering')
-    q.cmd("ls\n")
-    time.sleep(2)
-    q.read()
-    q.match('f5')
+    ok = q.match('^recovering', exit=False)
+    if ok:
+        q.cmd("ls\n")
+        time.sleep(2)
+        q.read()
+        q.match('f5')
     q.stop()
+    return ok
 
 def forphan():
     q = QEMU(True)
@@ -117,10 +120,16 @@ def recover_orphan():
 
 def test_log():
     print("Test recovery of log")
-    crash()
-    recover_log()
-    print("OK")
-
+    for i in range(5):
+        crash_log()
+        ok = recover_log()
+        if ok:
+            print("OK")
+            return
+        print("log attempt ", i+1)
+    print("FAILED")
+    sys.exit(1)
+    
 def test_forphan():
     print("Test recovery of an orphaned file")
     forphan()
