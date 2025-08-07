@@ -3,9 +3,18 @@
 #
 # python script that tests xv6 without having to boot it and type to its shell
 #
+# ./test-xv6.py usertests  (runs usertests)
+# ./test-xv6.py -q usertests (runs the quick tests of usertests)
+# ./test-xv6.py crash  (runs the crash tests)
+# ./test-xv6.py log (runs the log crash test)
 
-import os, re, signal, subprocess, sys, time
+import argparse, os, inspect, re, signal, subprocess, sys, time
 from subprocess import run
+
+parser = argparse.ArgumentParser()
+parser.add_argument('testrex', help="test name or regular expression")
+parser.add_argument("-q", action='store_true', help="usertests quick")
+args = parser.parse_args()
 
 class QEMU(object):
 
@@ -33,6 +42,14 @@ class QEMU(object):
             run(["make", "kernel/kernel"], check=True)
         except subprocess.CalledProcessError as e:
             print(f"Command failed with exit code {e.returncode}")
+
+    def save_output(self):
+      try:
+        with open("test-xv6.out", "w") as f:
+            f.write(self.out)
+            f.close()
+      except OSError as e:
+        print("Provided a bad results path. Error:", e)     
         
     def cmd(self, c):
         if isinstance(c, str):
@@ -60,18 +77,40 @@ class QEMU(object):
     def lines(self):
         return self.output.splitlines()
 
+    def error(self):
+        print("FAIL: match failed", regexps)
+        self.save_output()
+        self.stop()
+        sys.exit(1)
+
     def match(self, *regexps, exit=True):
         lines = self.lines()
-        good = set()
+        last = -1
         for i, line in enumerate(lines):
             if any(re.match(r, line) for r in regexps):
-                good.add(i)
-                regexps = [r for r in regexps if not re.match(r, line)]
-        if len(good) == 0 and exit:
-            print("match failed", regexps, good)
-            self.stop()
-            sys.exit(1)
-        return len(good) > 0
+                print(line)
+                last = i
+        if last == -1 and exit:
+            self.error()
+        l = ""
+        if last >= 0:
+            l = lines[last]
+        return last >= 0, l
+
+    def monitor(self, *regexps, progress="", timeout):
+        deadline = time.time() + timeout
+        while True:
+            time.sleep(1)
+            timeleft = deadline - time.time()
+            if timeleft < 0:
+                self.error()
+            self.read()
+            ok, _ = self.match(*regexps, exit=False)
+            if ok:
+                return
+            ok, line = self.match(progress, exit=False)
+            if ok:
+                print(line)
 
 def crash_log():
     q = QEMU(True)
@@ -84,7 +123,7 @@ def recover_log():
     q = QEMU()
     time.sleep(2)
     q.read()
-    ok = q.match('^recovering', exit=False)
+    ok, _ = q.match('^recovering', exit=False)
     if ok:
         q.cmd("ls\n")
         time.sleep(2)
@@ -127,7 +166,7 @@ def test_log():
             print("OK")
             return
         print("log attempt ", i+1)
-    print("FAILED")
+    print("FAIL")
     sys.exit(1)
     
 def test_forphan():
@@ -142,6 +181,37 @@ def test_dorphan():
     recover_orphan()
     print("OK")
 
-test_log()
-test_forphan()
-test_dorphan()
+def test_crash():
+    test_log()
+    test_forphan()
+    test_dorphan()
+
+def test_usertests(test=""):
+    timeout = 600
+    opt = ""
+    if args.q:
+        opt = " -q"
+        timeout = 300
+    elif test != "":
+        opt += " " + test
+    print("opt", opt)
+    q = QEMU(True)
+    q.cmd("usertests" + opt + "\n")
+    q.monitor('^ALL TESTS PASSED', progress='test', timeout=timeout)
+    q.stop()
+
+def main():
+    print(args)
+    rex = r'%s' % args.testrex
+    funcs = [(obj,name) for name,obj in inspect.getmembers(sys.modules[__name__]) 
+                     if (inspect.isfunction(obj) and 
+                         name.startswith('test'))]
+    none = True
+    for (f,n) in funcs:
+        if re.search(rex, n):
+            none = False
+            f()
+    if none:
+        test_usertests(test=args.testrex)
+
+main()
