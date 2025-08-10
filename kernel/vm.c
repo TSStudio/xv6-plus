@@ -51,15 +51,25 @@ kvmmake(void)
   return kpgtbl;
 }
 
-// Initialize the one kernel_pagetable
+// add a mapping to the kernel page table.
+// only used when booting.
+// does not flush TLB or enable paging.
+void
+kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
+{
+  if(mappages(kpgtbl, va, sz, pa, perm) != 0)
+    panic("kvmmap");
+}
+
+// Initialize the kernel_pagetable, shared by all CPUs.
 void
 kvminit(void)
 {
   kernel_pagetable = kvmmake();
 }
 
-// Switch h/w page table register to the kernel's page table,
-// and enable paging.
+// Switch the current CPU's h/w page table register to
+// the kernel's page table, and enable paging.
 void
 kvminithart()
 {
@@ -127,16 +137,6 @@ walkaddr(pagetable_t pagetable, uint64 va)
   return pa;
 }
 
-// add a mapping to the kernel page table.
-// only used when booting.
-// does not flush TLB or enable paging.
-void
-kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
-{
-  if(mappages(kpgtbl, va, sz, pa, perm) != 0)
-    panic("kvmmap");
-}
-
 // Create PTEs for virtual addresses starting at va that refer to
 // physical addresses starting at pa.
 // va and size MUST be page-aligned.
@@ -173,6 +173,19 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   return 0;
 }
 
+// create an empty user page table.
+// returns 0 if out of memory.
+pagetable_t
+uvmcreate()
+{
+  pagetable_t pagetable;
+  pagetable = (pagetable_t) kalloc();
+  if(pagetable == 0)
+    return 0;
+  memset(pagetable, 0, PGSIZE);
+  return pagetable;
+}
+
 // Remove npages of mappings starting from va. va must be
 // page-aligned. It's OK if the mappings don't exist.
 // Optionally free the physical memory.
@@ -198,20 +211,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
   }
 }
 
-// create an empty user page table.
-// returns 0 if out of memory.
-pagetable_t
-uvmcreate()
-{
-  pagetable_t pagetable;
-  pagetable = (pagetable_t) kalloc();
-  if(pagetable == 0)
-    return 0;
-  memset(pagetable, 0, PGSIZE);
-  return pagetable;
-}
-
-// Allocate PTEs and physical memory to grow process from oldsz to
+// Allocate PTEs and physical memory to grow a process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
 uint64
 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
