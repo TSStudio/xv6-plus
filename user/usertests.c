@@ -2585,7 +2585,7 @@ badarg(char *s)
 // Touch a page every 64 pages, which with lazy allocation
 // causes one page to be allocated.
 void
-sparse_memory(char *s)
+lazy_alloc(char *s)
 {
   char *i, *prev_end, *new_end;
   
@@ -2613,7 +2613,7 @@ sparse_memory(char *s)
 // causes one page to be allocated. Check that freeing the region
 // frees the allocated pages.
 void
-sparse_memory_unmap(char *s)
+lazy_alloc_unmap(char *s)
 {
   int pid;
   char *i, *prev_end, *new_end;
@@ -2757,8 +2757,8 @@ struct test {
   {sbrklast, "sbrklast"},
   {sbrk8000, "sbrk8000"},
   {badarg, "badarg" },
-  {sparse_memory, "lazy_alloc"},
-  {sparse_memory_unmap, "lazy_unmap"},
+  {lazy_alloc, "lazy_alloc"},
+  {lazy_alloc_unmap, "lazy_unmap"},
   {more_sparse, "more_sparse"},
   { 0, 0},
 };
