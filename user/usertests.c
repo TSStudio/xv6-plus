@@ -23,8 +23,8 @@ char buf[BUFSZ];
 
 //
 // Section with tests that run fairly quickly.  Use -q if you want to
-// run just those.  With -q usertests also runs the ones that take a
-// fair of time.
+// run just those.  Without -q usertests also runs the ones that take a
+// fair amount of time.
 //
 
 // what if you pass ridiculous pointers to system calls
