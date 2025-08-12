@@ -194,7 +194,6 @@ def test_usertests(test=""):
         timeout = 300
     elif test != "":
         opt += " " + test
-    print("opt", opt)
     q = QEMU(True)
     q.cmd("usertests" + opt + "\n")
     q.monitor('^ALL TESTS PASSED', progress='test', timeout=timeout)
