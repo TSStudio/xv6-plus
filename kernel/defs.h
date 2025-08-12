@@ -147,7 +147,7 @@ void            prepare_return(void);
 // uart.c
 void            uartinit(void);
 void            uartintr(void);
-void            uartputc(int);
+void            uartwrite(char [], int);
 void            uartputc_sync(int);
 int             uartgetc(void);
 
