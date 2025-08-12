@@ -250,12 +250,12 @@ rwsbrk(char *s)
   
   uint64 a = (uint64) sbrk(8192);
 
-  if(a == 0xffffffffffffffffLL) {
+  if(a == (uint64) SBRK_ERROR) {
     printf("sbrk(rwsbrk) failed\n");
     exit(1);
   }
   
-  if ((uint64) sbrk(-8192) ==  0xffffffffffffffffLL) {
+  if (sbrk(-8192) == SBRK_ERROR) {
     printf("sbrk(rwsbrk) shrink failed\n");
     exit(1);
   }
@@ -2011,7 +2011,7 @@ sbrkbasic(char *s)
   }
   if(pid == 0){
     a = sbrk(TOOMUCH);
-    if(a == (char*)0xffffffffffffffffL){
+    if(a == (char*)SBRK_ERROR){
       // it's OK if this fails.
       exit(0);
     }
@@ -2084,7 +2084,7 @@ sbrkmuch(char *s)
   // can one de-allocate?
   a = sbrk(0);
   c = sbrk(-PGSIZE);
-  if(c == (char*)0xffffffffffffffffL){
+  if(c == (char*)SBRK_ERROR){
     printf("%s: sbrk could not deallocate\n", s);
     exit(1);
   }
@@ -2185,7 +2185,7 @@ sbrkfail(char *s)
   for(i = 0; i < sizeof(pids)/sizeof(pids[0]); i++){
     if((pids[i] = fork()) == 0){
       // allocate a lot of memory
-      if (sbrk(BIG - (uint64)sbrk(0)) ==  (char*)0xffffffffffffffffL)
+      if (sbrk(BIG - (uint64)sbrk(0)) ==  (char*)SBRK_ERROR)
         write(fds[1], "0", 1);
       else
         write(fds[1], "1", 1);
@@ -2211,7 +2211,7 @@ sbrkfail(char *s)
     kill(pids[i]);
     wait(0);
   }
-  if(c == (char*)0xffffffffffffffffL){
+  if(c == (char*)SBRK_ERROR){
     printf("%s: failed sbrk leaked memory\n", s);
     exit(1);
   }
@@ -2225,7 +2225,7 @@ sbrkfail(char *s)
   if(pid == 0){
     // allocate a lot of memory. this should produce an error
     a = sbrk(10*BIG);
-    if(a == (char*)0xffffffffffffffffL){
+    if(a == (char*)SBRK_ERROR){
       exit(0);
     }   
     printf("%s: allocate a lot of memory succeeded %d\n", s, 10*BIG);
@@ -2595,7 +2595,7 @@ lazy_alloc(char *s)
   char *i, *prev_end, *new_end;
   
   prev_end = sbrklazy(REGION_SZ);
-  if (prev_end == (char*)0xffffffffffffffffL) {
+  if (prev_end == (char *) SBRK_ERROR) {
     printf("sbrklazy() failed\n");
     exit(1);
   }
@@ -2624,7 +2624,7 @@ lazy_unmap(char *s)
   char *i, *prev_end, *new_end;
 
   prev_end = sbrklazy(REGION_SZ);
-  if (prev_end == (char*)0xffffffffffffffffL) {
+  if (prev_end == (char*)SBRK_ERROR) {
     printf("sbrklazy() failed\n");
     exit(1);
   }
@@ -2918,10 +2918,10 @@ execout(char *s)
     } else if(pid == 0){
       // allocate all of memory.
       while(1){
-        uint64 a = (uint64) sbrk(PGSIZE);
-        if(a == 0xffffffffffffffffLL)
+        char *a = sbrk(PGSIZE);
+        if(a == SBRK_ERROR)
           break;
-        *(char*)(a + PGSIZE - 1) = 1;
+        *(a + PGSIZE - 1) = 1;
       }
 
       // free a few pages, in order to let exec() make some
@@ -3118,8 +3118,8 @@ countfree()
   int n = 0;
   uint64 sz0 = (uint64)sbrk(0);
   while(1){
-    uint64 a = (uint64) sbrk(PGSIZE);
-    if(a == 0xffffffffffffffff){
+    char *a = sbrk(PGSIZE);
+    if(a == SBRK_ERROR){
       break;
     }
     n += 1;
