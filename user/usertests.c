@@ -265,9 +265,9 @@ rwsbrk(char *s)
     printf("open(rwsbrk) failed\n");
     exit(1);
   }
-  n = write(fd, (void*)(a+4096), 1024);
+  n = write(fd, (void*)(a+PGSIZE), 1024);
   if(n >= 0){
-    printf("write(fd, %p, 1024) returned %d, not -1\n", (void*)a+4096, n);
+    printf("write(fd, %p, 1024) returned %d, not -1\n", (void*)a+PGSIZE, n);
     exit(1);
   }
   close(fd);
@@ -278,9 +278,9 @@ rwsbrk(char *s)
     printf("open(README) failed\n");
     exit(1);
   }
-  n = read(fd, (void*)(a+4096), 10);
+  n = read(fd, (void*)(a+PGSIZE), 10);
   if(n >= 0){
-    printf("read(fd, %p, 10) returned %d, not -1\n", (void*)a+4096, n);
+    printf("read(fd, %p, 10) returned %d, not -1\n", (void*)a+PGSIZE, n);
     exit(1);
   }
   close(fd);
@@ -2016,7 +2016,7 @@ sbrkbasic(char *s)
       exit(0);
     }
     
-    for(b = a; b < a+TOOMUCH; b += 4096){
+    for(b = a; b < a+TOOMUCH; b += PGSIZE){
       *b = 99;
     }
     
@@ -2517,7 +2517,7 @@ sbrkbugs(char *s)
   }
   if(pid == 0){
     // set the break in the middle of a page.
-    sbrk((10*4096 + 2048) - (uint64)sbrk(0));
+    sbrk((10*PGSIZE + 2048) - (uint64)sbrk(0));
 
     // reduce the break a bit, but not enough to
     // cause a page to be freed. this used to cause
@@ -2538,9 +2538,9 @@ void
 sbrklast(char *s)
 {
   uint64 top = (uint64) sbrk(0);
-  if((top % 4096) != 0)
-    sbrk(4096 - (top % 4096));
-  sbrk(4096);
+  if((top % PGSIZE) != 0)
+    sbrk(PGSIZE - (top % PGSIZE));
+  sbrk(PGSIZE);
   sbrk(10);
   sbrk(-20);
   top = (uint64) sbrk(0);
@@ -2661,7 +2661,7 @@ lazy_copy(char *s)
   // copyinstr on lazy page
   {
     char *p = sbrk(0);
-    sbrklazy(4*4096);
+    sbrklazy(4*PGSIZE);
     open(p + 8192, 0);
   }
   
@@ -2918,16 +2918,16 @@ execout(char *s)
     } else if(pid == 0){
       // allocate all of memory.
       while(1){
-        uint64 a = (uint64) sbrk(4096);
+        uint64 a = (uint64) sbrk(PGSIZE);
         if(a == 0xffffffffffffffffLL)
           break;
-        *(char*)(a + 4096 - 1) = 1;
+        *(char*)(a + PGSIZE - 1) = 1;
       }
 
       // free a few pages, in order to let exec() make some
       // progress.
       for(int i = 0; i < avail; i++)
-        sbrk(-4096);
+        sbrk(-PGSIZE);
       
       close(1);
       char *args[] = { "echo", "x", 0 };
@@ -3118,7 +3118,7 @@ countfree()
   int n = 0;
   uint64 sz0 = (uint64)sbrk(0);
   while(1){
-    uint64 a = (uint64) sbrk(4096);
+    uint64 a = (uint64) sbrk(PGSIZE);
     if(a == 0xffffffffffffffff){
       break;
     }
