@@ -454,8 +454,8 @@ vmfault(pagetable_t pagetable, uint64 va, int read)
 {
   uint64 ka;
   struct proc *p = myproc();
-  ka = 0;
 
+  ka = 0;
   if (va >= p->sz)
     return 0;
   va = PGROUNDDOWN(va);

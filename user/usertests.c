@@ -275,7 +275,7 @@ rwsbrk(char *s)
 
   fd = open("README", O_RDONLY);
   if(fd < 0){
-    printf("open(rwsbrk) failed\n");
+    printf("open(README) failed\n");
     exit(1);
   }
   n = read(fd, (void*)(a+4096), 10);
@@ -2078,9 +2078,6 @@ sbrkmuch(char *s)
     exit(1);
   }
 
-  // use sbrkalloc to make sure each page exists
-  sbrkalloc(0);
-
   lastaddr = (char*) (BIG-1);
   *lastaddr = 99;
 
@@ -2178,7 +2175,9 @@ sbrkfail(char *s)
   char *c, *a;
   int pids[10];
   int pid;
- 
+  int failed;
+
+  failed = 0;
   if(pipe(fds) != 0){
     printf("%s: pipe() failed\n", s);
     exit(1);
@@ -2186,15 +2185,23 @@ sbrkfail(char *s)
   for(i = 0; i < sizeof(pids)/sizeof(pids[0]); i++){
     if((pids[i] = fork()) == 0){
       // allocate a lot of memory
-      sbrk(BIG - (uint64)sbrk(0));
-      write(fds[1], "x", 1);
+      if (sbrk(BIG - (uint64)sbrk(0)) ==  (char*)0xffffffffffffffffL)
+        write(fds[1], "0", 1);
+      else
+        write(fds[1], "1", 1);
       // sit around until killed
       for(;;) sleep(1000);
     }
-    if(pids[i] != -1)
+    if(pids[i] != -1) {
       read(fds[0], &scratch, 1);
+      if(scratch == '0')
+        failed = 1;
+    }
   }
-
+  if(!failed) {
+    printf("%s: no allocation failed; allocate more?\n", s);
+  }
+  
   // if those failed allocations freed up the pages they did allocate,
   // we'll be able to allocate here
   c = sbrk(PGSIZE);
@@ -2216,10 +2223,8 @@ sbrkfail(char *s)
     exit(1);
   }
   if(pid == 0){
-    // allocate a lot of memory.
-    // this should produce an error or a page fault with lazy,
-    // and thus not complete.
-    a = sbrkalloc(10*BIG);
+    // allocate a lot of memory. this should produce an error
+    a = sbrk(10*BIG);
     if(a == (char*)0xffffffffffffffffL){
       exit(0);
     }   
@@ -2227,7 +2232,7 @@ sbrkfail(char *s)
     exit(1);
   }
   wait(&xstatus);
-  if(xstatus != -1 && xstatus != 2)
+  if(xstatus != 0)
     exit(1);
 }
 
@@ -2589,9 +2594,9 @@ lazy_alloc(char *s)
 {
   char *i, *prev_end, *new_end;
   
-  prev_end = sbrk(REGION_SZ);
+  prev_end = sbrklazy(REGION_SZ);
   if (prev_end == (char*)0xffffffffffffffffL) {
-    printf("sbrk() failed\n");
+    printf("sbrklazy() failed\n");
     exit(1);
   }
   new_end = prev_end + REGION_SZ;
@@ -2613,14 +2618,14 @@ lazy_alloc(char *s)
 // causes one page to be allocated. Check that freeing the region
 // frees the allocated pages.
 void
-lazy_alloc_unmap(char *s)
+lazy_unmap(char *s)
 {
   int pid;
   char *i, *prev_end, *new_end;
 
-  prev_end = sbrk(REGION_SZ);
+  prev_end = sbrklazy(REGION_SZ);
   if (prev_end == (char*)0xffffffffffffffffL) {
-    printf("sbrk() failed\n");
+    printf("sbrklazy() failed\n");
     exit(1);
   }
   new_end = prev_end + REGION_SZ;
@@ -2634,7 +2639,7 @@ lazy_alloc_unmap(char *s)
       printf("error forking\n");
       exit(1);
     } else if (pid == 0) {
-      sbrk(-1L * REGION_SZ);
+      sbrklazy(-1L * REGION_SZ);
       *(char **)i = i;
       exit(0);
     } else {
@@ -2656,20 +2661,20 @@ lazy_copy(char *s)
   // copyinstr on lazy page
   {
     char *p = sbrk(0);
-    sbrk(4*4096);
+    sbrklazy(4*4096);
     open(p + 8192, 0);
   }
   
   {
-    int xx = (int) (long) sbrk(0);
-    // this sbrk should fail and return -1.
-    void *ret = sbrk(-(xx+1));
-    if(ret != (void*)0xffffffffffffffff){
-      printf("sbrk(sbrk(0)+1) returned %p, not -1\n", ret);
+    void *xx = sbrk(0);
+    void *ret = sbrk(-(((uint64) xx)+1));
+    if(ret != xx){
+      printf("sbrk(sbrk(0)+1) returned %p, not old sz\n", ret);
       exit(1);
     }
   }
 
+  
   // read() and write() to these addresses should fail.
   unsigned long bad[] = {
     0x3fffffc000,
@@ -2758,7 +2763,7 @@ struct test {
   {sbrk8000, "sbrk8000"},
   {badarg, "badarg" },
   {lazy_alloc, "lazy_alloc"},
-  {lazy_alloc_unmap, "lazy_unmap"},
+  {lazy_unmap, "lazy_unmap"},
   {lazy_copy, "lazy_copy"},
   { 0, 0},
 };
@@ -3106,69 +3111,20 @@ runtests(struct test *tests, char *justone, int continuous) {
 }
 
 
-//
 // use sbrk() to count how many free physical memory pages there are.
-// touches the pages to force allocation.
-// because out of memory with lazy allocation results in the process
-// taking a fault and being killed, fork and report back.
-//
 int
 countfree()
 {
-  int fds[2];
-
-  if(pipe(fds) < 0){
-    printf("pipe() failed in countfree()\n");
-    exit(1);
-  }
-  
-  int pid = fork();
-
-  if(pid < 0){
-    printf("fork failed in countfree()\n");
-    exit(1);
-  }
-
-  if(pid == 0){
-    close(fds[0]);
-    
-    while(1){
-      uint64 a = (uint64) sbrk(4096);
-      if(a == 0xffffffffffffffff){
-        break;
-      }
-
-      // modify the memory to make sure it's really allocated.
-      *(char *)(a + 4096 - 1) = 1;
-
-      // report back one more page.
-      if(write(fds[1], "x", 1) != 1){
-        printf("write() failed in countfree()\n");
-        exit(1);
-      }
-    }
-
-    exit(0);
-  }
-
-  close(fds[1]);
-
   int n = 0;
+  uint64 sz0 = (uint64)sbrk(0);
   while(1){
-    char c;
-    int cc = read(fds[0], &c, 1);
-    if(cc < 0){
-      printf("read() failed in countfree()\n");
-      exit(1);
-    }
-    if(cc == 0)
+    uint64 a = (uint64) sbrk(4096);
+    if(a == 0xffffffffffffffff){
       break;
+    }
     n += 1;
   }
-
-  close(fds[0]);
-  wait((int*)0);
-  
+  sbrk(-((uint64)sbrk(0) - sz0));  
   return n;
 }
 
