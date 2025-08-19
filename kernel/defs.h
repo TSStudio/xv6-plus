@@ -23,7 +23,7 @@ void            consoleintr(int);
 void            consputc(int);
 
 // exec.c
-int             exec(char*, char**);
+int             kexec(char*, char**);
 
 // file.c
 struct file*    filealloc(void);
@@ -79,13 +79,13 @@ void            printfinit(void);
 
 // proc.c
 int             cpuid(void);
-void            exit(int);
-int             fork(void);
+void            kexit(int);
+int             kfork(void);
 int             growproc(int);
 void            proc_mapstacks(pagetable_t);
 pagetable_t     proc_pagetable(struct proc *);
 void            proc_freepagetable(pagetable_t, uint64);
-int             kill(int);
+int             kkill(int);
 int             killed(struct proc*);
 void            setkilled(struct proc*);
 struct cpu*     mycpu(void);
@@ -96,7 +96,7 @@ void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
 void            sleep(void*, struct spinlock*);
 void            userinit(void);
-int             wait(uint64);
+int             kwait(uint64);
 void            wakeup(void*);
 void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);

@@ -20,8 +20,11 @@ int flags2perm(int flags)
     return perm;
 }
 
+//
+// the implementation of the exec() system call
+//
 int
-exec(char *path, char **argv)
+kexec(char *path, char **argv)
 {
   char *s, *last;
   int i, off;

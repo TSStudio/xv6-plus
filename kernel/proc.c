@@ -254,7 +254,7 @@ growproc(int n)
 // Create a new process, copying the parent.
 // Sets up child kernel stack to return as if from fork() system call.
 int
-fork(void)
+kfork(void)
 {
   int i, pid;
   struct proc *np;
@@ -321,7 +321,7 @@ reparent(struct proc *p)
 // An exited process remains in the zombie state
 // until its parent calls wait().
 void
-exit(int status)
+kexit(int status)
 {
   struct proc *p = myproc();
 
@@ -365,7 +365,7 @@ exit(int status)
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int
-wait(uint64 addr)
+kwait(uint64 addr)
 {
   struct proc *pp;
   int havekids, pid;
@@ -519,9 +519,9 @@ forkret(void)
     // ensure other cores see first=0.
     __sync_synchronize();
 
-    // We can invoke exec() now that file system is initialized.
-    // Put the return value (argc) of exec into a0.
-    p->trapframe->a0 = exec("/init", (char *[]){ "/init", 0 });
+    // We can invoke kexec() now that file system is initialized.
+    // Put the return value (argc) of kexec into a0.
+    p->trapframe->a0 = kexec("/init", (char *[]){ "/init", 0 });
     if (p->trapframe->a0 == -1) {
       panic("exec");
     }
@@ -534,7 +534,7 @@ forkret(void)
   ((void (*)(uint64))trampoline_userret)(satp);
 }
 
-// Sleep on wait channel chan, releasing condition lock lk.
+// Sleep on channel chan, releasing condition lock lk.
 // Re-acquires lk when awakened.
 void
 sleep(void *chan, struct spinlock *lk)
@@ -565,7 +565,7 @@ sleep(void *chan, struct spinlock *lk)
   acquire(lk);
 }
 
-// Wake up all processes sleeping on wait channel chan.
+// Wake up all processes sleeping on channel chan.
 // Caller should hold the condition lock.
 void
 wakeup(void *chan)
@@ -587,7 +587,7 @@ wakeup(void *chan)
 // The victim won't exit until it tries to return
 // to user space (see usertrap() in trap.c).
 int
-kill(int pid)
+kkill(int pid)
 {
   struct proc *p;
 
