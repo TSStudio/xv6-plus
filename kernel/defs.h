@@ -188,4 +188,5 @@ void virtio_disk_intr(void);
 void init_all_slabs(void);
 void* kmalloc(uint);
 void kmfree(void*, uint);
-void single_thread_test(void);
+void slab_single_thread_test(void);
+void slab_benchmark_test(void);
