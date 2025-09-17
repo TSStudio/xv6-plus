@@ -30,7 +30,8 @@ void main() {
         userinit();          // first user process
         __sync_synchronize();
 
-        single_thread_test();
+        slab_single_thread_test();
+        slab_benchmark_test();
 
         started = 1;
 
