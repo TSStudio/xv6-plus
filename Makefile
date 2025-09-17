@@ -1,6 +1,15 @@
 K=kernel
 U=user
 
+# Enable parallel compilation by default
+# Auto-detect number of CPU cores for parallel builds
+ifndef JOBS
+JOBS := $(shell nproc 2>/dev/null || echo 4)
+endif
+
+# Set default make flags for parallel compilation
+MAKEFLAGS += -j$(JOBS)
+
 OBJS = \
   $K/entry.o \
   $K/start.o \
@@ -29,7 +38,8 @@ OBJS = \
   $K/kernelvec.o \
   $K/plic.o \
   $K/virtio_disk.o \
-  $K/machine.o
+  $K/machine.o \
+  $K/slab.o
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -192,3 +202,28 @@ check-qemu-version:
 		echo "ERROR: Need qemu version >= $(MIN_QEMU_VERSION)"; \
 		exit 1; \
 	fi
+
+# Parallel build targets for faster compilation
+fast: $K/kernel fs.img
+	@echo "Built with $(JOBS) parallel jobs"
+
+parallel: clean
+	$(MAKE) fast
+
+# Force sequential build (disable parallel compilation)
+sequential:
+	$(MAKE) JOBS=1 all
+
+# Show current parallel job count
+show-jobs:
+	@echo "Current parallel jobs: $(JOBS)"
+
+# Parallel QEMU targets
+qemu-fast: check-qemu-version
+	$(MAKE) fast
+	$(QEMU) $(QEMUOPTS)
+
+qemu-gdb-fast: check-qemu-version
+	@echo "*** Now run 'gdb' in another window." 1>&2
+	$(MAKE) fast
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
