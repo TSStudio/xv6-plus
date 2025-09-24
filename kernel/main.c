@@ -30,7 +30,6 @@ void main() {
         userinit();          // first user process
         __sync_synchronize();
 
-        slab_single_thread_test();
         slab_benchmark_test();
 
         started = 1;
@@ -44,5 +43,7 @@ void main() {
         plicinithart();  // ask PLIC for device interrupts
     }
 
+    // Multi-core slab test - all harts participate
+    fuzz_slab_test_main();
     scheduler();
 }

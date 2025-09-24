@@ -14,6 +14,8 @@
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
+void init_slab_test(void);
+
 typedef struct slab {
     struct slab *next;
     void *mem;  // slab 对象区首地址（位于若干页中）
@@ -267,6 +269,7 @@ void init_all_slabs() {
     kmem_cache_init(&kmem_caches[3], 512);
     kmem_cache_init(&kmem_caches[4], 1024);
     kmem_cache_init(&kmem_caches[5], 2048);
+    init_slab_test();
     printf("slab allocator initialized\n");
 }
 
@@ -299,24 +302,6 @@ void print_statistics() {
         }
         release(&c->lock);
     }
-}
-
-void slab_single_thread_test() {
-    printf("single thread test start\n");
-    void **p = (void **)kalloc();  //allocate 4096 or 512 pointers
-    for (int i = 0; i < 512; i++) {
-        p[i] = kmalloc(64);
-        if (!p[i]) {
-            printf("allocation failed at %d\n", i);
-            return;
-        }
-    }
-    print_statistics();
-    for (int i = 0; i < 512; i++) {
-        kmfree(p[i], 64);
-    }
-    kfree(p);
-    printf("single thread test passed\n");
 }
 
 void slab_benchmark_test() {
