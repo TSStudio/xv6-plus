@@ -1,3 +1,5 @@
+#ifndef DEFS_H
+#define DEFS_H
 struct buf;
 struct context;
 struct file;
@@ -188,5 +190,9 @@ void virtio_disk_intr(void);
 void init_all_slabs(void);
 void* kmalloc(uint);
 void kmfree(void*, uint);
-void slab_single_thread_test(void);
 void slab_benchmark_test(void);
+void print_statistics(void);
+
+void fuzz_slab_test_main();
+
+#endif

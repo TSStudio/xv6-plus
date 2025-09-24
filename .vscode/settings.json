@@ -2,6 +2,8 @@
     "files.associations": {
         "defs.h": "c",
         "file.h": "c",
-        "param.h": "c"
+        "param.h": "c",
+        "time.h": "c",
+        "types.h": "c"
     }
 }
