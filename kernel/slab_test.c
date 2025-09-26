@@ -64,3 +64,67 @@ void fuzz_slab_test_main() {
         print_statistics();
     }
 }
+
+void slab_benchmark_test() {
+    //one thread only
+    if (cpuid() != 0)
+        return;
+    printf("slab benchmark test start\n");
+    //test throughput of size 32//64//128//256//512//1024//2048
+    int sizes[7] = {32, 64, 128, 256, 512, 1024, 2048};
+    printf("size, objects, data_size, cycles_slab, cycles_page, mem_usage_slab, mem_usage_page\n");
+    for (int s = 0; s < 7; s++) {
+        int size = sizes[s];
+        void **p = (void **)kalloc();  //allocate 4096 or
+        uint64 start = r_time();
+        for (int i = 0; i < 512; i++) {
+            p[i] = kmalloc(size);
+            if (!p[i]) {
+                printf("allocation failed at %d\n", i);
+                return;
+            }
+            *(uint64 *)p[i] = i;  //store something
+        }
+        for (int i = 0; i < 512; i++) {
+            if (*(uint64 *)p[i] != i) {
+                printf("data corrupted at %d: expected %d, got %ld\n", i, i, *(uint64 *)p[i]);
+                return;
+            }
+        }
+        for (int i = 0; i < 512; i++) {
+            kmfree(p[i], size);
+        }
+        kfree(p);
+        uint64 end = r_time();
+        uint64 slab_cycles = end - start;
+        //page allocator
+        p = (void **)kalloc();  //allocate 4096 or
+        start = r_time();
+        for (int i = 0; i < 512; i++) {
+            p[i] = kalloc();
+            if (!p[i]) {
+                printf("allocation failed at %d\n", i);
+                return;
+            }
+            *(uint64 *)p[i] = i;  //store something
+        }
+        for (int i = 0; i < 512; i++) {
+            if (*(uint64 *)p[i] != i) {
+                printf("data corrupted at %d: expected %d, got %ld\n", i, i, *(uint64 *)p[i]);
+                return;
+            }
+        }
+        for (int i = 0; i < 512; i++) {
+            kfree(p[i]);
+        }
+        kfree(p);
+        end = r_time();
+        uint64 page_cycles = end - start;
+        //memory usage
+        uint64 mem_usage_slab = size >= 64 ? 100 : 50;
+        uint64 mem_usage_page = (size * 100) / 4096;
+        printf("%d, %d, %d, %ld, %ld, %ld%%, %ld%%\n", size, 512, size * 512, slab_cycles, page_cycles, mem_usage_slab, mem_usage_page);
+    }
+    print_statistics();
+    printf("slab benchmark test passed\n");
+}
