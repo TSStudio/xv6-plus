@@ -41,6 +41,7 @@ void *slab_alloc(slab *s, uint obj_size) {
         if (s->freemap & (1ULL << i)) {
             s->freemap &= ~(1ULL << i);
             s->nr_free--;
+            memset((void *)s->mem + i * obj_size, 0xAA, obj_size);
             return (void *)s->mem + i * obj_size;
         }
     }
@@ -53,6 +54,7 @@ void slab_free(slab *s, void *obj, uint obj_size) {
         return;  // 错误
     if (s->freemap & (1ULL << i))
         return;  // 重复释放，错误
+    memset(obj, 0xDD, obj_size);
     s->freemap |= (1ULL << i);
     s->nr_free++;
 }
@@ -296,10 +298,11 @@ void print_statistics() {
             total_capacity += s->capacity;
             total_free += s->nr_free;
         }
-        printf("kmem_cache obj_size=%d: partial=%d, full=%d, empty=%d\n", c->obj_size, partial_count, full_count, empty_count);
+        printf("kmem_cache obj_size=%d: partial=%d, full=%d, empty=%d ", c->obj_size, partial_count, full_count, empty_count);
         if (total_capacity > 0) {
-            printf("[%d%%]total objects: %d, total free: %d\n", 100 - (total_free * 100 / total_capacity), total_capacity, total_free);
+            printf("[%d%%] total objects: %d, total free: %d", 100 - (total_free * 100 / total_capacity), total_capacity, total_free);
         }
+        printf("\n");
         release(&c->lock);
     }
 }
