@@ -192,7 +192,6 @@ void kmem_cache_free(struct kmem_cache *c, void *obj) {
         release(&c->lock);
         return;
     }
-    // todo: 如果 empty 链表过长，可以考虑释放一些 slab 回收内存
     int counter = 0;  //删除第 2 个 及以后的 empty slab
     slab *pp = c->empty;
     while (pp && pp->next) {
@@ -305,38 +304,4 @@ void print_statistics() {
         printf("\n");
         release(&c->lock);
     }
-}
-
-void slab_benchmark_test() {
-    printf("benchmark test start\n");
-    uint64 start = r_time();
-    void **p = (void **)kalloc();  //allocate 4096 or 512 pointers
-    for (int i = 0; i < 512; i++) {
-        p[i] = kmalloc(64);
-        if (!p[i]) {
-            printf("allocation failed at %d\n", i);
-            return;
-        }
-    }
-    for (int i = 0; i < 512; i++) {
-        kmfree(p[i], 64);
-    }
-    kfree(p);
-    uint64 end = r_time();
-    //use kalloc and kfree to do the same thing
-    void **q = (void **)kalloc();  //allocate 4096 or 512 pointers
-    for (int i = 0; i < 512; i++) {
-        q[i] = kalloc();
-        if (!q[i]) {
-            printf("allocation failed at %d\n", i);
-            return;
-        }
-    }
-    for (int i = 0; i < 512; i++) {
-        kfree(q[i]);
-    }
-    kfree(q);
-    uint64 end2 = r_time();
-    printf("benchmark test passed, time: %ld\n", end - start);
-    printf("comparison time: %ld\n", end2 - end);
 }
