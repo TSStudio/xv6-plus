@@ -22,28 +22,28 @@ struct run {
 struct {
     struct spinlock lock;
     struct run *freelist;
-    struct run *superlist;
 } kmem;
+
+struct {
+    struct spinlock lock;
+    struct run *superlist;
+} super_kmem;
 
 void kinit() {
     initlock(&kmem.lock, "kmem");
+    initlock(&super_kmem.lock, "super_kmem");
     freerange(end, (void *)PHYSTOP);
-    superfreerange((void *)PHYSTOP, (void *)SUPERSTOP);
 }
 
 void freerange(void *pa_start, void *pa_end) {
     char *p;
     p = (char *)PGROUNDUP((uint64)pa_start);
-    for (; p + PGSIZE <= (char *)pa_end; p += PGSIZE)
+    for (; p + PGSIZE <= (char *)pa_end - 16 * SUPERPGSIZE; p += PGSIZE)
         kfree(p);
-}
 
-void superfreerange(void *pa_start, void *pa_end) {
-    char *p;
-    p = (char *)SUPERPGROUNDUP((uint64)pa_start);
-    for (; p + SUPERPGSIZE <= (char *)pa_end; p += SUPERPGSIZE) {
+    p = (char *)SUPERPGROUNDUP((uint64)p);
+    for (; p + SUPERPGSIZE <= (char *)pa_end; p += SUPERPGSIZE)
         superfree(p);
-    }
 }
 
 // Free the page of physical memory pointed at by pa,
@@ -70,15 +70,15 @@ void kfree(void *pa) {
 void superfree(void *pa) {
     struct run *r;
 
-    if (((uint64)pa % SUPERPGSIZE) != 0 || (char *)pa < (char *)PHYSTOP || (uint64)pa >= SUPERSTOP)
+    if (((uint64)pa % SUPERPGSIZE) != 0 || (char *)pa < end || (uint64)pa >= PHYSTOP)
         panic("superfree");
     // Fill with junk to catch dangling refs.
     memset(pa, 1, SUPERPGSIZE);
     r = (struct run *)pa;
-    acquire(&kmem.lock);
-    r->next = kmem.superlist;
-    kmem.superlist = r;
-    release(&kmem.lock);
+    acquire(&super_kmem.lock);
+    r->next = super_kmem.superlist;
+    super_kmem.superlist = r;
+    release(&super_kmem.lock);
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -103,11 +103,11 @@ void *
 superalloc(void) {
     struct run *r;
 
-    acquire(&kmem.lock);
-    r = kmem.superlist;
+    acquire(&super_kmem.lock);
+    r = super_kmem.superlist;
     if (r)
-        kmem.superlist = r->next;
-    release(&kmem.lock);
+        super_kmem.superlist = r->next;
+    release(&super_kmem.lock);
 
     if (r)
         memset((char *)r, 5, SUPERPGSIZE);  // fill with junk
