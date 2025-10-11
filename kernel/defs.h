@@ -1,7 +1,5 @@
-#ifdef LAB_MMAP
-gtypedef unsigned long size_t;
+typedef unsigned long size_t;
 typedef long int off_t;
-#endif
 struct buf;
 struct context;
 struct file;
@@ -241,3 +239,6 @@ void netinit(void);
 void net_rx(char* buf, int len);
 
 #endif
+
+uint64 sys_mmap(void);
+uint64 sys_munmap(void);
