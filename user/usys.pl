@@ -48,3 +48,5 @@ entry("send");
 entry("recv");
 entry("pgpte");
 entry("kpgtbl");
+entry("mmap");
+entry("munmap");
