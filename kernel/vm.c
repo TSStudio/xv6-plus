@@ -300,13 +300,14 @@ void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free) {
             sz = SUPERPGSIZE;
         }
         if (do_free) {
-            if ((*pte & PTE_SUP) == 0) {
-                uint64 pa = PTE2PA(*pte);
-                kfree((void *)pa);
-            } else {
-                // super page
-                uint64 pa = PTE2PA(*pte);
-                superfree((void *)pa);
+            uint64 pa = PTE2PA(*pte);
+            if (pa != 0) {
+                if ((*pte & PTE_SUP) == 0) {
+                    kfree((void *)pa);
+                } else {
+                    // super page
+                    superfree((void *)pa);
+                }
             }
         }
         *pte = 0;

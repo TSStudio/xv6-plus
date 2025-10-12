@@ -52,6 +52,7 @@ void procinit(void) {
         p->state = UNUSED;
         p->kstack = KSTACK((int)(p - proc));
     }
+    vmainit();
 }
 
 // Must be called with interrupts disabled,
@@ -161,6 +162,7 @@ freeproc(struct proc *p) {
     if (p->pagetable)
         proc_freepagetable(p->pagetable, p->sz);
     p->pagetable = 0;
+    p->vma = 0;
     p->sz = 0;
     p->pid = 0;
     p->parent = 0;
@@ -260,6 +262,7 @@ int kfork(void) {
     int i, pid;
     struct proc *np;
     struct proc *p = myproc();
+    struct vma *iter, *prev, *next;
 
     // Allocate process.
     if ((np = allocproc()) == 0) {
@@ -273,6 +276,24 @@ int kfork(void) {
         return -1;
     }
     np->sz = p->sz;
+
+    // Map the same regions as the parent.
+    for (iter = p->vma; iter; iter = iter->next) {
+        if (mmap(np, iter->start, iter->end - iter->start,
+                 iter->prot, iter->flags, iter->f, iter->offset) < 0) {
+            munmap(np, p->vma->start, MAXVMEMMAP);
+            freeproc(np);
+            release(&np->lock);
+            return -1;
+        }
+    }
+    // Reverse new process's vma list.
+    for (prev = 0, iter = np->vma; iter; iter = next) {
+        next = iter->next;
+        iter->next = prev;
+        prev = iter;
+    }
+    np->vma = prev;
 
     // copy saved user registers.
     *(np->trapframe) = *(p->trapframe);
@@ -324,6 +345,9 @@ void kexit(int status) {
 
     if (p == initproc)
         panic("init exiting");
+
+    if (p->vma)
+        munmap(p, p->vma->start, MAXVMEMMAP);
 
     // Close all open files.
     for (int fd = 0; fd < NOFILE; fd++) {
@@ -557,6 +581,11 @@ void wakeup(void *chan) {
 
     for (p = proc; p < &proc[NPROC]; p++) {
         if (p != myproc()) {
+            if (holding(&p->lock)) {
+                if (p->state == SLEEPING && p->chan == chan)
+                    p->state = RUNNABLE;
+                continue;
+            }
             acquire(&p->lock);
             if (p->state == SLEEPING && p->chan == chan) {
                 p->state = RUNNABLE;

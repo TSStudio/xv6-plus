@@ -10,6 +10,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct vma;
 #ifdef LAB_LOCK
 struct rwspinlock;
 #endif
@@ -152,6 +153,9 @@ int fetchstr(uint64, char*, int);
 int fetchaddr(uint64, uint64*);
 void syscall();
 
+// sysfile.c
+int argfd(int n, int* pfd, struct file** pf);
+
 // trap.c
 extern uint ticks;
 void trapinit(void);
@@ -242,3 +246,12 @@ void net_rx(char* buf, int len);
 
 uint64 sys_mmap(void);
 uint64 sys_munmap(void);
+
+int mmap_page(struct vma*, uint64, pte_t*);
+
+void vmainit(void);
+uint64
+mmap(struct proc* p, uint64 addr, uint64 len, int prot, int flags,
+     struct file* f, uint64 offset);
+uint64
+munmap(struct proc* p, uint64 start, uint64 end);

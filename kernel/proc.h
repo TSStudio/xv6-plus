@@ -1,3 +1,14 @@
+struct vma {
+    uint64 start;
+    uint64 end;
+    int prot;
+    int flags;
+    struct file *f;
+    uint64 offset;
+    uint64 fsize;  // original file size at mmap time (to avoid extending file on writeback)
+    struct vma *next;
+};  // from CS: APP
+
 // Saved registers for kernel context switches.
 struct context {
     uint64 ra;
@@ -99,6 +110,7 @@ struct proc {
 
     // wait_lock must be held when using this:
     struct proc *parent;  // Parent process
+    struct vma *vma;      // Virtual memory areas (for mmap)
 
     // these are private to the process, so p->lock need not be held.
     uint64 kstack;                // Virtual address of kernel stack
