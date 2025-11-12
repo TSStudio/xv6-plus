@@ -29,6 +29,8 @@ entry("read");
 entry("write");
 entry("close");
 entry("kill");
+entry("signal");
+entry("sigreturn");
 entry("exec");
 entry("open");
 entry("mknod");
