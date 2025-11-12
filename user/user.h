@@ -1,6 +1,10 @@
 #define SBRK_ERROR ((char*)-1)
 
+#include "kernel/signal.h"
+
 struct stat;
+
+typedef void (*sighandler_t)(int);
 
 // system calls
 int fork(void);
@@ -10,7 +14,9 @@ int pipe(int*);
 int write(int, const void*, int);
 int read(int, void*, int);
 int close(int);
-int kill(int);
+int kill(int, int);
+sighandler_t signal(int, sighandler_t);
+int sigreturn(void);
 int exec(const char*, char**);
 int open(const char*, int);
 int mknod(const char*, short, short);
