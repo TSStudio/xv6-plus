@@ -31,6 +31,7 @@ void main() {
         __sync_synchronize();
 
         slab_benchmark_test();
+        // kthread_test_init();
 
         started = 1;
 

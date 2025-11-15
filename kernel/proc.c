@@ -726,7 +726,6 @@ struct proc* kthread_create(void (*func)(void*), void* arg, char* name) {
     p->context.sp = p->kstack + PGSIZE;
 
     // 6. 设置为 RUNNABLE 状态，等待调度器调度
-    acquire(&p->lock);
     p->state = RUNNABLE;
     release(&p->lock);
 
