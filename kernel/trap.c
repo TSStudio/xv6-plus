@@ -46,6 +46,9 @@ usertrap(void) {
 
     struct proc* p = myproc();
 
+    if (p->is_kthread)
+        panic("kthread in usertrap");
+
     // save user program counter.
     p->trapframe->epc = r_sepc();
 
