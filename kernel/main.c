@@ -28,6 +28,8 @@ void main() {
         fileinit();          // file table
         virtio_disk_init();  // emulated hard disk
         userinit();          // first user process
+        if (kthread_create(khugepaged_main, 0, "khugepaged") == 0)
+            panic("khugepaged");
         __sync_synchronize();
 
         slab_benchmark_test();

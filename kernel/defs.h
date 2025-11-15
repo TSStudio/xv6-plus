@@ -60,6 +60,8 @@ void ireclaim(int);
 // kalloc.c
 void* kalloc(void);
 void kfree(void*);
+void* kalloc_huge(void);
+void kfree_huge(void*);
 void kinit(void);
 
 // log.c
@@ -106,6 +108,7 @@ int either_copyin(void* dst, int user_src, uint64 src, uint64 len);
 void procdump(void);
 struct proc* kthread_create(void (*func)(void*), void* arg, char* name);
 void kthread_test_init(void);
+void khugepaged_main(void* arg);
 
 // swtch.S
 void swtch(struct context*, struct context*);
@@ -174,6 +177,7 @@ int copyin(pagetable_t, char*, uint64, uint64);
 int copyinstr(pagetable_t, char*, uint64, uint64);
 int ismapped(pagetable_t, uint64);
 uint64 vmfault(pagetable_t, uint64, int);
+int vm_try_collapse(struct proc*, uint64);
 
 // plic.c
 void plicinit(void);

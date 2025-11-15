@@ -314,6 +314,10 @@ typedef uint64 *pagetable_t;  // 512 PTEs
 #define PGSIZE 4096  // bytes per page
 #define PGSHIFT 12   // bits of offset within a page
 
+#define HUGEPGORDER 9
+#define HUGEPGSIZE (PGSIZE << HUGEPGORDER)
+#define HUGEPGSHIFT (PGSHIFT + HUGEPGORDER)
+
 #define PGROUNDUP(sz) (((sz) + PGSIZE - 1) & ~(PGSIZE - 1))
 #define PGROUNDDOWN(a) (((a)) & ~(PGSIZE - 1))
 
