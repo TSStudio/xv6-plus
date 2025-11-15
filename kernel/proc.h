@@ -117,4 +117,8 @@ struct proc {
     uint64 signal_handlers[NSIG];    // user-space handler entry points
     struct trapframe sig_trapframe;  // backed-up state for sigreturn
     int sig_trapframe_valid;         // non-zero while handler active
+
+    int is_kthread;
+    void (*kthread_func)(void*);  // 内核线程的入口函数
+    void* kthread_arg;            // 内核线程的参数
 };
