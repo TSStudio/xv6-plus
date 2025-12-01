@@ -14,8 +14,7 @@ extern uint ticks;
 extern struct spinlock tickslock;
 
 static void
-khugepaged_sleep_ticks(int delta)
-{
+khugepaged_sleep_ticks(int delta) {
     if (delta <= 0)
         return;
 
@@ -28,14 +27,12 @@ khugepaged_sleep_ticks(int delta)
 }
 
 static int
-is_runnable_state(enum procstate state)
-{
+is_runnable_state(enum procstate state) {
     return state == RUNNABLE || state == RUNNING || state == SLEEPING;
 }
 
 static void
-scan_proc_for_collapse(struct proc *p)
-{
+scan_proc_for_collapse(struct proc* p) {
     if (p->pagetable == 0)
         return;
     if (p->sz < HUGEPGSIZE)
@@ -43,15 +40,14 @@ scan_proc_for_collapse(struct proc *p)
 
     for (uint64 va = 0; va + HUGEPGSIZE <= p->sz; va += HUGEPGSIZE) {
         if (vm_try_collapse(p, va)) {
-            printf("khugepaged: collapsed pid=%d va=0x%p\n", p->pid, (void *)va);
+            printf("khugepaged: collapsed pid=%d va=0x%p\n", p->pid, (void*)va);
         }
     }
 }
 
 static void
-scan_all_procs_for_collapse(void)
-{
-    for (struct proc *p = proc; p < &proc[NPROC]; p++) {
+scan_all_procs_for_collapse(void) {
+    for (struct proc* p = proc; p < &proc[NPROC]; p++) {
         acquire(&p->lock);
         if (!p->is_kthread && is_runnable_state(p->state)) {
             scan_proc_for_collapse(p);
@@ -60,9 +56,7 @@ scan_all_procs_for_collapse(void)
     }
 }
 
-void
-khugepaged_main(void *arg)
-{
+void khugepaged_main(void* arg) {
     (void)arg;
 
     for (;;) {
