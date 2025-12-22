@@ -25,4 +25,4 @@ barrier
 .DS_Store
 *.dSYM
 *.pcap
-docs/
+docs/fs.img.bk
