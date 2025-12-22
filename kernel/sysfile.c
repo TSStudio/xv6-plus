@@ -126,7 +126,7 @@ sys_fstat(void)
 uint64
 sys_link(void)
 {
-  char name[DIRSIZ], new[MAXPATH], old[MAXPATH];
+  char name[MAXFNAME], new[MAXPATH], old[MAXPATH];
   struct inode *dp, *ip;
 
   if (argstr(0, old, MAXPATH) < 0 || argstr(1, new, MAXPATH) < 0)
@@ -197,7 +197,7 @@ sys_unlink(void)
 {
   struct inode *ip, *dp;
   struct dirent de;
-  char name[DIRSIZ], path[MAXPATH];
+  char name[MAXFNAME], path[MAXPATH];
   uint off;
 
   if (argstr(0, path, MAXPATH) < 0)
@@ -227,10 +227,21 @@ sys_unlink(void)
     iunlockput(ip);
     goto bad;
   }
+  int namelen = strlen(name);
+  int fragments = 0;
+  if (namelen > DIRSIZ)
+    fragments = (namelen + 1 + DIRSIZ - 1) / DIRSIZ;
+  int total = (namelen > DIRSIZ) ? fragments + 1 : 1;
+  int start_off = (int)off - fragments * sizeof(de);
+  if (start_off < 0)
+    panic("unlink: bad offset");
 
   memset(&de, 0, sizeof(de));
-  if (writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
-    panic("unlink: writei");
+  for (int i = 0; i < total; i++)
+  {
+    if (writei(dp, 0, (uint64)&de, start_off + i * sizeof(de), sizeof(de)) != sizeof(de))
+      panic("unlink: writei");
+  }
   if (ip->type == T_DIR)
   {
     dp->nlink--;
@@ -256,7 +267,7 @@ static struct inode *
 create(char *path, short type, short major, short minor)
 {
   struct inode *ip, *dp;
-  char name[DIRSIZ];
+  char name[MAXFNAME];
 
   if ((dp = nameiparent(path, name)) == 0)
     return 0;
@@ -618,4 +629,44 @@ uint64 sys_symlink()
   iunlockput(ip);
   end_op();
   return 0;
+}
+
+uint64
+sys_readlink(void)
+{
+  char path[MAXPATH];
+  uint64 user_buf;
+  int size;
+
+  if (argstr(0, path, MAXPATH) < 0)
+    return -1;
+  argaddr(1, &user_buf);
+  argint(2, &size);
+  if (size <= 0)
+    return -1;
+
+  begin_op();
+  struct inode *ip = namei(path);
+  if (ip == 0)
+  {
+    end_op();
+    return -1;
+  }
+
+  ilock(ip);
+  if (ip->type != T_SYMLINK)
+  {
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+
+  int n = ip->size;
+  if (n > size)
+    n = size;
+
+  int r = readi(ip, 1, user_buf, 0, n);
+  iunlockput(ip);
+  end_op();
+  return r;
 }

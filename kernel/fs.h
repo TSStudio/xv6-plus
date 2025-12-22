@@ -53,7 +53,13 @@ struct dinode
 #define BBLOCK(b, sb) ((b) / BPB + sb.bmapstart)
 
 // Directory is a file containing a sequence of dirent structures.
+// DIRSIZ stays 14 to keep the on-disk layout stable; long names are
+// represented by chaining multiple dirent slots.
 #define DIRSIZ 14
+// Maximum supported filename (single path element) length.
+#define MAXFNAME 128
+// Continuation marker for a long filename slot.
+#define DIRENT_CONT 0xFFFF
 
 struct dirent
 {

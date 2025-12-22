@@ -391,6 +391,9 @@ bmap(struct inode *ip, uint bn)
   struct buf *bp;
   struct buf *bp2;
 
+  if (bn >= MAXFILE)
+    return 0;
+
   if (bn < NDIRECT)
   {
     if ((addr = ip->addrs[bn]) == 0)
@@ -465,7 +468,7 @@ bmap(struct inode *ip, uint bn)
     return addr;
   }
 
-  panic("bmap: out of range");
+  return 0;
 }
 
 // Truncate inode (discard contents).
@@ -623,30 +626,67 @@ int namecmp(const char *s, const char *t)
 }
 
 // Look for a directory entry in a directory.
-// If found, set *poff to byte offset of entry.
+// If found, set *poff to byte offset of the main entry.
 struct inode *
 dirlookup(struct inode *dp, char *name, uint *poff)
 {
   uint off, inum;
   struct dirent de;
+  char lname[MAXFNAME];
+  int llen = 0;
 
   if (dp->type != T_DIR)
     panic("dirlookup not DIR");
+
+  lname[0] = 0;
 
   for (off = 0; off < dp->size; off += sizeof(de))
   {
     if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
       panic("dirlookup read");
+
     if (de.inum == 0)
-      continue;
-    if (namecmp(name, de.name) == 0)
     {
-      // entry matches path element
+      llen = 0;
+      lname[0] = 0;
+      continue;
+    }
+
+    if (de.inum == DIRENT_CONT)
+    {
+      for (int i = 0; i < DIRSIZ && llen < MAXFNAME - 1; i++)
+      {
+        lname[llen++] = de.name[i];
+        if (de.name[i] == 0)
+          break;
+      }
+      if (llen >= MAXFNAME)
+        lname[MAXFNAME - 1] = 0;
+      continue;
+    }
+
+    // A real entry ends any long-name accumulation.
+    if (llen > 0)
+    {
+      lname[min(llen, MAXFNAME - 1)] = 0;
+      if (strncmp(name, lname, MAXFNAME) == 0)
+      {
+        if (poff)
+          *poff = off;
+        inum = de.inum;
+        return iget(dp->dev, inum);
+      }
+    }
+    else if (namecmp(name, de.name) == 0)
+    {
       if (poff)
         *poff = off;
       inum = de.inum;
       return iget(dp->dev, inum);
     }
+
+    llen = 0;
+    lname[0] = 0;
   }
 
   return 0;
@@ -659,6 +699,10 @@ int dirlink(struct inode *dp, char *name, uint inum)
   int off;
   struct dirent de;
   struct inode *ip;
+  int namelen = strlen(name);
+
+  if (namelen == 0 || namelen >= MAXFNAME)
+    return -1;
 
   // Check that name is not present.
   if ((ip = dirlookup(dp, name, 0)) != 0)
@@ -667,18 +711,72 @@ int dirlink(struct inode *dp, char *name, uint inum)
     return -1;
   }
 
-  // Look for an empty dirent.
+  if (namelen <= DIRSIZ)
+  {
+    // Look for an empty dirent.
+    for (off = 0; off < dp->size; off += sizeof(de))
+    {
+      if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+        panic("dirlink read");
+      if (de.inum == 0)
+        break;
+    }
+
+    memset(&de, 0, sizeof(de));
+    strncpy(de.name, name, DIRSIZ);
+    de.inum = inum;
+    if (writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+      return -1;
+    return 0;
+  }
+
+  // Long name: need multiple continuation slots plus a main slot.
+  int fragments = (namelen + 1 + DIRSIZ - 1) / DIRSIZ; // include '\0'
+  int need = fragments + 1;                            // + main slot
+  int run = 0;
+  int start = -1;
+
   for (off = 0; off < dp->size; off += sizeof(de))
   {
     if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
       panic("dirlink read");
     if (de.inum == 0)
-      break;
+    {
+      if (run == 0)
+        start = off;
+      run++;
+      if (run == need)
+        break;
+    }
+    else
+    {
+      run = 0;
+      start = -1;
+    }
   }
 
-  strncpy(de.name, name, DIRSIZ);
+  if (run < need)
+  {
+    start = dp->size;
+  }
+
+  // Write continuation fragments.
+  for (int i = 0; i < fragments; i++)
+  {
+    memset(&de, 0, sizeof(de));
+    de.inum = DIRENT_CONT;
+    int chunk_off = i * DIRSIZ;
+    int remaining = namelen + 1 - chunk_off; // include terminator
+    int tocopy = remaining > DIRSIZ ? DIRSIZ : remaining;
+    memmove(de.name, name + chunk_off, tocopy);
+    if (writei(dp, 0, (uint64)&de, start + i * sizeof(de), sizeof(de)) != sizeof(de))
+      return -1;
+  }
+
+  // Main slot: holds the real inode number.
+  memset(&de, 0, sizeof(de));
   de.inum = inum;
-  if (writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+  if (writei(dp, 0, (uint64)&de, start + fragments * sizeof(de), sizeof(de)) != sizeof(de))
     return -1;
 
   return 0;
@@ -712,8 +810,11 @@ skipelem(char *path, char *name)
   while (*path != '/' && *path != 0)
     path++;
   len = path - s;
-  if (len >= DIRSIZ)
-    memmove(name, s, DIRSIZ);
+  if (len >= MAXFNAME)
+  {
+    memmove(name, s, MAXFNAME - 1);
+    name[MAXFNAME - 1] = 0;
+  }
   else
   {
     memmove(name, s, len);
@@ -726,7 +827,7 @@ skipelem(char *path, char *name)
 
 // Look up and return the inode for a path name.
 // If parent != 0, return the inode for the parent and copy the final
-// path element into name, which must have room for DIRSIZ bytes.
+// path element into name, which must have room for MAXFNAME bytes.
 // Must be called inside a transaction since it calls iput().
 static struct inode *
 namex(char *path, int nameiparent, char *name)
@@ -771,7 +872,7 @@ namex(char *path, int nameiparent, char *name)
 struct inode *
 namei(char *path)
 {
-  char name[DIRSIZ];
+  char name[MAXFNAME];
   return namex(path, 0, name);
 }
 
