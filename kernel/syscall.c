@@ -95,6 +95,8 @@ extern uint64 sys_close(void);
 extern uint64 sys_halt(void);
 extern uint64 sys_signal(void);
 extern uint64 sys_sigreturn(void);
+extern uint64 sys_amemcpy(void);
+extern uint64 sys_csync(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -125,6 +127,8 @@ static uint64 (*syscalls[])(void) = {
     [SYS_halt] sys_halt,
     [SYS_signal] sys_signal,
     [SYS_sigreturn] sys_sigreturn,
+    [SYS_amemcpy] sys_amemcpy,
+    [SYS_csync] sys_csync,
 };
 
 void syscall(void) {

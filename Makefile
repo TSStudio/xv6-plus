@@ -41,6 +41,7 @@ OBJS = \
   $K/machine.o \
   $K/slab.o \
   $K/slab_test.o \
+	$K/copier.o \
 	$K/kthread_test.o \
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
@@ -155,6 +156,7 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
+	$U/_copier\
 	$U/_sigtest\
 	$U/_halt\
 

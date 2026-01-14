@@ -28,6 +28,7 @@ void main() {
         fileinit();          // file table
         virtio_disk_init();  // emulated hard disk
         userinit();          // first user process
+        copier_init();       // start async copy worker
         __sync_synchronize();
 
         slab_benchmark_test();

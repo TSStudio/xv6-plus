@@ -45,3 +45,5 @@ entry("sbrk");
 entry("pause");
 entry("uptime");
 entry("halt");
+entry("amemcpy");
+entry("csync");

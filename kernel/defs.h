@@ -106,6 +106,7 @@ int either_copyin(void* dst, int user_src, uint64 src, uint64 len);
 void procdump(void);
 struct proc* kthread_create(void (*func)(void*), void* arg, char* name);
 void kthread_test_init(void);
+void copier_init(void);
 
 // swtch.S
 void swtch(struct context*, struct context*);
